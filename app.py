@@ -1,3 +1,8 @@
+# =============================================================================
+#  app.py  —  MILP Shelf Display Allocator Dashboard
+#  Run : streamlit run app.py
+# =============================================================================
+
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
@@ -17,12 +22,22 @@ except Exception as e:
     IMPORTS_OK = False
     IMPORT_ERROR = str(e)
 
-st.set_page_config(page_title = "MILP Shelf Allocator", layout = "wide", initial_sidebar_state = "expanded")
+# =============================================================================
+#  PAGE CONFIG
+# =============================================================================
+st.set_page_config(
+    page_title = "MILP Shelf Allocator",
+    layout     = "wide",
+    initial_sidebar_state = "expanded",
+)
 
 if not IMPORTS_OK:
     st.error(f"Startup error: {IMPORT_ERROR}")
     st.stop()
 
+# =============================================================================
+#  CSS
+# =============================================================================
 st.markdown("""
 <style>
   html, body, [class*="css"] { font-family: 'Inter', 'Segoe UI', sans-serif; }
@@ -68,7 +83,8 @@ ICONS = {
     "table"   : "M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18",
     "cube"    : "M12 2l10 6v8l-10 6L2 16V8l10-6z M12 22V12 M22 8l-10 4L2 8",
     "zap"     : "M13 2L3 14h9l-1 8 10-12h-9l1-8z",
-    "info"    : "M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 8v4M12 16h.01"
+    "info"    : "M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 8v4M12 16h.01",
+    "compare" : "M14 5l7 7m0 0l-7 7m7-7H3"
 }
 
 def sec_header(icon_key, title, badge=None):
@@ -105,40 +121,41 @@ def render_3d_viewer(layout_df: pd.DataFrame = None, height: int = 500):
                 "rack"    : r_num,
                 "level"   : s_level,
                 "color"   : CATEGORY_COLORS_HEX.get(str(row["Category"]), "#607D8B"),
+                "width_cm": float(row.get("Facing_Width_cm", 30))
             })
         products_json = json.dumps(products_js)
-        title_text = "Optimized Layout — 3D View"
+        title_text = "Optimized Layout — True Scale 3D View"
     else:
         products_json = "[]"
         title_text = "3D Shelf Viewer — Run optimizer to see layout"
 
-    html = f"""
+    raw_html = """
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <style>
-*{{margin:0;padding:0;box-sizing:border-box}}
-body{{background:#0d0d1a;font-family:Inter,sans-serif;overflow:hidden}}
-#wrap{{width:100%;height:{height}px;position:relative}}
-canvas{{width:100%;height:100%;display:block}}
-#controls{{position:absolute;top:10px;left:10px;display:flex;gap:6px;flex-wrap:wrap}}
-.btn{{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d0d1a;font-family:Inter,sans-serif;overflow:hidden}
+#wrap{width:100%;height:__HEIGHT__px;position:relative}
+canvas{width:100%;height:100%;display:block}
+#controls{position:absolute;top:10px;left:10px;display:flex;gap:6px;flex-wrap:wrap}
+.btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
   color:#fff;font-size:11px;padding:5px 11px;border-radius:6px;cursor:pointer;
-  backdrop-filter:blur(4px);transition:background .2s}}
-.btn:hover{{background:rgba(255,255,255,.2)}}
-.btn.active{{background:rgba(96,165,250,.3);border-color:#60A5FA}}
-#legend{{position:absolute;bottom:10px;left:10px;display:flex;flex-wrap:wrap;gap:6px}}
-.leg{{display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.45);
-  padding:4px 8px;border-radius:5px;font-size:10px;color:#ddd}}
-.leg-dot{{width:10px;height:10px;border-radius:3px;flex-shrink:0}}
-#tooltip{{position:absolute;top:10px;right:10px;background:rgba(10,15,35,.9);
+  backdrop-filter:blur(4px);transition:background .2s}
+.btn:hover{background:rgba(255,255,255,.2)}
+.btn.active{background:rgba(96,165,250,.3);border-color:#60A5FA}
+#legend{position:absolute;bottom:10px;left:10px;display:flex;flex-wrap:wrap;gap:6px}
+.leg{display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.45);
+  padding:4px 8px;border-radius:5px;font-size:10px;color:#ddd}
+.leg-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+#tooltip{position:absolute;top:10px;right:10px;background:rgba(10,15,35,.9);
   color:#e5e7eb;font-size:12px;padding:10px 14px;border-radius:8px;
   pointer-events:none;line-height:1.7;min-width:160px;display:none;
-  border:1px solid rgba(96,165,250,.3)}}
-#title{{position:absolute;top:10px;left:50%;transform:translateX(-50%);
+  border:1px solid rgba(96,165,250,.3); z-index:1000;}
+#title{position:absolute;top:10px;left:50%;transform:translateX(-50%);
   background:rgba(0,0,0,.5);color:#9CA3AF;font-size:11px;padding:4px 12px;
-  border-radius:20px;white-space:nowrap}}
+  border-radius:20px;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -151,7 +168,7 @@ canvas{{width:100%;height:100%;display:block}}
     <button class="btn" onclick="setView('top')">Top</button>
     <button class="btn" id="rot-btn" onclick="toggleRotate()">Auto Rotate</button>
   </div>
-  <div id="title">{title_text}</div>
+  <div id="title">__TITLE_TEXT__</div>
   <div id="legend">
     <div class="leg"><div class="leg-dot" style="background:#4CAF50"></div>Tops</div>
     <div class="leg"><div class="leg-dot" style="background:#2196F3"></div>Denim</div>
@@ -165,16 +182,16 @@ canvas{{width:100%;height:100%;display:block}}
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-const PRODUCTS = {products_json};
+const PRODUCTS = __PRODUCTS_JSON__;
 const RACK_W=4, RACK_GAP=1.2, N_RACKS=5;
 const shelfYs = [0.5, 2.7, 4.9];
-const levelToY = {{1:shelfYs[2], 2:shelfYs[1], 3:shelfYs[0]}};
-const rackXs = Array.from({{length:N_RACKS}},(_,i)=>i*(RACK_W+RACK_GAP));
+const levelToY = {1:shelfYs[2], 2:shelfYs[1], 3:shelfYs[0]};
+const rackXs = Array.from({length:N_RACKS},(_,i)=>i*(RACK_W+RACK_GAP));
 
 const canvas = document.getElementById('c');
 const wrap   = document.getElementById('wrap');
 const tt     = document.getElementById('tooltip');
-const renderer = new THREE.WebGLRenderer({{canvas,antialias:true,alpha:false}});
+const renderer = new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.shadowMap.enabled = true;
 renderer.setClearColor(0x0d0d1a);
@@ -182,14 +199,14 @@ renderer.setClearColor(0x0d0d1a);
 const scene  = new THREE.Scene();
 scene.fog    = new THREE.Fog(0x0d0d1a,35,80);
 const camera = new THREE.PerspectiveCamera(42,1,0.1,200);
-const CENTER = new THREE.Vector3(10,4,0);
+const CENTER = new THREE.Vector3(10,3.5,0);
 
-function resize(){{
+function resize(){
   const w=wrap.clientWidth,h=wrap.clientHeight;
   renderer.setSize(w,h);
   camera.aspect=w/h;
   camera.updateProjectionMatrix();
-}}
+}
 resize();
 window.addEventListener('resize',resize);
 
@@ -202,113 +219,154 @@ const fill=new THREE.PointLight(0x4488ff,0.4,60);
 fill.position.set(-5,12,10);
 scene.add(fill);
 
-const floor=new THREE.Mesh(new THREE.PlaneGeometry(60,40), new THREE.MeshLambertMaterial({{color:0x0a0a18}}));
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(60,40), new THREE.MeshLambertMaterial({color:0x0a0a18}));
 floor.rotation.x=-Math.PI/2; floor.receiveShadow=true; scene.add(floor);
 scene.add(new THREE.GridHelper(40,20,0x222244,0x111133));
 
-rackXs.forEach(rx=>{{
-  [-RACK_W/2+0.05,RACK_W/2-0.05].forEach(xo=>{{
-    const p=new THREE.Mesh(new THREE.BoxGeometry(0.08,7,0.08), new THREE.MeshLambertMaterial({{color:0x1a1a3a}}));
+rackXs.forEach(rx=>{
+  [-RACK_W/2+0.05,RACK_W/2-0.05].forEach(xo=>{
+    const p=new THREE.Mesh(new THREE.BoxGeometry(0.08,7,0.08), new THREE.MeshLambertMaterial({color:0x1a1a3a}));
     p.position.set(rx+xo,3.5,0); scene.add(p);
-  }});
-  shelfYs.forEach(sy=>{{
-    const board=new THREE.Mesh(new THREE.BoxGeometry(RACK_W-0.2,0.07,1.8), new THREE.MeshLambertMaterial({{color:0x2a2a4a}}));
+  });
+  
+  shelfYs.forEach(sy=>{
+    const board=new THREE.Mesh(new THREE.BoxGeometry(RACK_W-0.2,0.07,1.8), new THREE.MeshLambertMaterial({color:0x2a2a4a}));
     board.position.set(rx,sy,0); board.receiveShadow=true; scene.add(board);
-    board.add(new THREE.LineSegments(new THREE.EdgesGeometry(board.geometry), new THREE.LineBasicMaterial({{color:0x4444aa}})));
-  }});
-}});
+    board.add(new THREE.LineSegments(new THREE.EdgesGeometry(board.geometry), new THREE.LineBasicMaterial({color:0x4444aa})));
+  });
+
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, RACK_W-0.2), new THREE.MeshLambertMaterial({color:0xcccccc}));
+  rod.rotation.z = Math.PI / 2;
+  rod.position.set(rx, shelfYs[1] - 0.15, 0); 
+  scene.add(rod);
+});
 
 const meshObjects=[];
-const slots={{}};
-PRODUCTS.forEach(p=>{{
-  const key=`${{p.rack}}-${{p.level}}`;
+const slots={};
+PRODUCTS.forEach(p=>{
+  const key=`${p.rack}-${p.level}`;
   if(!slots[key]) slots[key]=[];
   slots[key].push(p);
-}});
+});
 
-Object.entries(slots).forEach(([key,prods])=>{{
+Object.entries(slots).forEach(([key,prods])=>{
   const [rStr,lStr]=key.split('-');
   const rx=rackXs[(parseInt(rStr)-1)];
   const sy=levelToY[parseInt(lStr)];
-  const n=prods.length;
-  const slotW=(RACK_W-0.3)/Math.max(n,1);
 
-  prods.forEach((p,i)=>{{
-    const xOff=-RACK_W/2+0.15+slotW*(i+0.5);
-    const isHang=p.mode==='Hanging';
-    const col=parseInt(p.color.replace('#',''),16);
+  let totalW = 0;
+  prods.forEach(p => { totalW += (p.facings * p.width_cm) * 0.025; });
+  
+  let availW = RACK_W - 0.3;
+  let scale = totalW > availW ? availW / totalW : 1.0;
+  let currentX = -(totalW * scale) / 2; 
 
-    let geo,yOff,zOff;
-    if(isHang){{
-      geo=new THREE.BoxGeometry(slotW*0.72,1.1,0.12);
-      yOff=0.6; zOff=0;
-    }} else {{
-      const stackH=0.2*p.facings;
-      geo=new THREE.BoxGeometry(slotW*0.8,stackH,0.55);
-      yOff=0.05+stackH/2; zOff=-0.3;
-    }}
+  prods.forEach((p,i)=>{
+    const isHang = p.mode === 'Hanging';
+    const col = parseInt(p.color.replace('#',''),16);
+    
+    // Calculate the width for a SINGLE facing (pile/item)
+    let singleW = (p.width_cm * 0.025) * scale;
+    let actualBoxW = Math.max(0.1, singleW - 0.03); 
 
-    const mesh=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({{color:col}}));
-    mesh.position.set(rx+xOff,sy+yOff,zOff); mesh.castShadow=true; mesh.userData={{product:p}};
-    scene.add(mesh); meshObjects.push(mesh);
+    // Loop and physically draw each facing individually!
+    for(let f = 0; f < p.facings; f++){
+        if(isHang){
+          // Draw individual hanging item
+          let geo = new THREE.BoxGeometry(actualBoxW, 1.4, 0.2); 
+          let rodY = shelfYs[1] - 0.15;
+          let yOff = (rodY - 0.7) - sy; 
+          
+          let mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({color: col}));
+          mesh.position.set(rx + currentX + singleW/2, sy + yOff, 0);
+          mesh.castShadow = true;
+          mesh.userData = {product: p};
+          scene.add(mesh);
+          meshObjects.push(mesh);
 
-    if(isHang){{
-      const hanger=new THREE.Mesh(new THREE.TorusGeometry(0.07,0.013,8,16,Math.PI), new THREE.MeshLambertMaterial({{color:0xcccccc}}));
-      hanger.position.set(rx+xOff,sy+1.2,zOff); hanger.rotation.z=Math.PI; scene.add(hanger);
-    }}
-  }});
-}});
+          let hanger = new THREE.Mesh(new THREE.TorusGeometry(0.04,0.012,8,12,Math.PI), new THREE.MeshLambertMaterial({color:0xdddddd}));
+          hanger.position.set(rx + currentX + singleW/2, shelfYs[1] - 0.22, 0); 
+          hanger.rotation.z = Math.PI;
+          scene.add(hanger);
+          
+        } else {
+          // Draw a neatly folded stack of 4 items for this specific facing
+          let shirtsInPile = 4;
+          let shirtH = 0.08;
+          for(let s_idx=0; s_idx < shirtsInPile; s_idx++){
+              let geo = new THREE.BoxGeometry(actualBoxW, shirtH, 0.7);
+              let mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({color: col}));
+              let yOff = 0.05 + (shirtH/2) + (s_idx * (shirtH + 0.015));
+              mesh.position.set(rx + currentX + singleW/2, sy + yOff, 0);
+              mesh.castShadow = true;
+              
+              // Add dark edging so you can see the individual garments in the stack
+              let edges = new THREE.EdgesGeometry(geo);
+              let line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color: 0x000000, transparent: true, opacity: 0.25}));
+              mesh.add(line);
+              
+              mesh.userData = {product: p};
+              scene.add(mesh);
+              meshObjects.push(mesh);
+          }
+        }
+        currentX += singleW; 
+    }
+  });
+});
 
 let camR=22,camTheta=0.55,camPhi=0.32,rotating=false;
 let isDrag=false,lastX=0,lastY=0,hoveredMesh=null,origColor=null;
 
-function updateCam(){{
+function updateCam(){
   camera.position.set(CENTER.x+camR*Math.sin(camTheta)*Math.cos(camPhi), CENTER.y+camR*Math.sin(camPhi), CENTER.z+camR*Math.cos(camTheta)*Math.cos(camPhi));
   camera.lookAt(CENTER);
-}}
+}
 updateCam();
 
-function setView(v){{
+function setView(v){
   document.querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));
   event.target.classList.add('active'); rotating=false; document.getElementById('rot-btn').textContent='Auto Rotate';
-  if(v==='front')  {{camR=26;camTheta=0;camPhi=0.18;}}
-  else if(v==='side') {{camR=26;camTheta=Math.PI/2;camPhi=0.18;}}
-  else if(v==='top')  {{camR=22;camTheta=0;camPhi=1.4;}}
-  else              {{camR=22;camTheta=0.55;camPhi=0.32;}}
+  if(v==='front')  {camR=26;camTheta=0;camPhi=0.18;}
+  else if(v==='side') {camR=26;camTheta=Math.PI/2;camPhi=0.18;}
+  else if(v==='top')  {camR=22;camTheta=0;camPhi=1.4;}
+  else              {camR=22;camTheta=0.55;camPhi=0.32;}
   updateCam();
-}}
-function toggleRotate(){{ rotating=!rotating; document.getElementById('rot-btn').textContent=rotating?'Stop':'Auto Rotate'; }}
+}
+function toggleRotate(){ rotating=!rotating; document.getElementById('rot-btn').textContent=rotating?'Stop':'Auto Rotate'; }
 
-canvas.addEventListener('mousedown',e=>{{isDrag=true;lastX=e.clientX;lastY=e.clientY;}});
-canvas.addEventListener('mouseup',()=>{{isDrag=false;}}); canvas.addEventListener('mouseleave',()=>{{isDrag=false;}});
-canvas.addEventListener('mousemove',e=>{{
-  if(isDrag){{ camTheta-=(e.clientX-lastX)*0.007; camPhi=Math.max(0.05,Math.min(1.4,camPhi+(e.clientY-lastY)*0.007)); lastX=e.clientX; lastY=e.clientY; updateCam(); }}
+canvas.addEventListener('mousedown',e=>{isDrag=true;lastX=e.clientX;lastY=e.clientY;});
+canvas.addEventListener('mouseup',()=>{isDrag=false;}); canvas.addEventListener('mouseleave',()=>{isDrag=false;});
+canvas.addEventListener('mousemove',e=>{
+  if(isDrag){ camTheta-=(e.clientX-lastX)*0.007; camPhi=Math.max(0.05,Math.min(1.4,camPhi+(e.clientY-lastY)*0.007)); lastX=e.clientX; lastY=e.clientY; updateCam(); }
   const rect=canvas.getBoundingClientRect();
   const mouse=new THREE.Vector2(((e.clientX-rect.left)/rect.width)*2-1, -((e.clientY-rect.top)/rect.height)*2+1);
   const ray=new THREE.Raycaster(); ray.setFromCamera(mouse,camera);
   const hits=ray.intersectObjects(meshObjects);
-  if(hits.length){{
+  if(hits.length){
     const obj=hits[0].object;
-    if(hoveredMesh!==obj){{
-      if(hoveredMesh&&origColor!==null){{hoveredMesh.material.color.setHex(origColor);hoveredMesh.material.emissive&&hoveredMesh.material.emissive.set(0x000000);}}
+    if(hoveredMesh!==obj){
+      if(hoveredMesh&&origColor!==null){hoveredMesh.material.color.setHex(origColor);hoveredMesh.material.emissive&&hoveredMesh.material.emissive.set(0x000000);}
       hoveredMesh=obj; origColor=obj.material.color.getHex();
       obj.material.color.setHex(0xffffff); obj.material.emissive=new THREE.Color(0x222222);
-    }}
-    tt.innerHTML=`<strong>${{obj.userData.product.name}}</strong><br>Category: ${{obj.userData.product.cat}}<br>Mode: ${{obj.userData.product.mode}}<br>Facings: ${{obj.userData.product.facings}}`;
+    }
+    tt.innerHTML=`<strong>${obj.userData.product.name}</strong><br>Category: ${obj.userData.product.cat}<br>Mode: ${obj.userData.product.mode}<br>Facings: ${obj.userData.product.facings}`;
     tt.style.display='block'; canvas.style.cursor='pointer';
-  }} else {{
-    if(hoveredMesh&&origColor!==null){{ hoveredMesh.material.color.setHex(origColor); if(hoveredMesh.material.emissive)hoveredMesh.material.emissive.set(0x000000); hoveredMesh=null;origColor=null; }}
+  } else {
+    if(hoveredMesh&&origColor!==null){ hoveredMesh.material.color.setHex(origColor); if(hoveredMesh.material.emissive)hoveredMesh.material.emissive.set(0x000000); hoveredMesh=null;origColor=null; }
     tt.style.display='none'; canvas.style.cursor='default';
-  }}
-}});
-canvas.addEventListener('wheel',e=>{{ e.preventDefault(); camR=Math.max(8,Math.min(50,camR+e.deltaY*0.04)); updateCam(); }},{{passive:false}});
+  }
+});
+canvas.addEventListener('wheel',e=>{ e.preventDefault(); camR=Math.max(8,Math.min(50,camR+e.deltaY*0.04)); updateCam(); },{passive:false});
 
-function animate(){{ requestAnimationFrame(animate); if(rotating){{camTheta+=0.005;updateCam();}} renderer.render(scene,camera); }}
+function animate(){ requestAnimationFrame(animate); if(rotating){camTheta+=0.005;updateCam();} renderer.render(scene,camera); }
 animate();
 </script>
 </body>
 </html>
 """
+    
+    html = raw_html.replace("__HEIGHT__", str(height)).replace("__TITLE_TEXT__", title_text).replace("__PRODUCTS_JSON__", products_json)
     components.html(html, height=height)
 
 with st.sidebar:
@@ -409,29 +467,29 @@ if "result" in st.session_state:
         shelf_summary = result["shelf_summary"]
         rules_ok      = int(cat_summary["Within_Rules"].sum())
         rules_total   = len(cat_summary)
-        gain          = improvement["utility_gain_pct"]
+        gain          = improvement.get("profit_gain_abs", 0)
 
         sec_header("bar", "Key Results")
         gain_cls = "kpi-badge-pos" if gain >= 0 else "kpi-badge-neg"
-        gain_str = f"+{gain:.1f}%" if gain >= 0 else f"{gain:.1f}%"
+        gain_str = f"+₹{gain:,.0f}" if gain >= 0 else f"-₹{abs(gain):,.0f}"
 
         st.markdown(f"""
         <div class="kpi-grid">
           <div class="kpi-card">
             <div class="kpi-icon-row">
               <div class="kpi-icon" style="background:#EFF6FF">{icon(ICONS['zap'],'#2563EB',16)}</div>
-              <span class="kpi-tag">Utility Score</span>
+              <span class="kpi-tag">Optimized Profit</span>
             </div>
-            <div class="kpi-val">{improvement['optimized_utility']:,.0f}</div>
-            <div class="kpi-sub">Engineering weighted score</div>
+            <div class="kpi-val">₹{improvement.get('optimized_profit', 0):,.0f}</div>
+            <div class="kpi-sub">Total revenue potential</div>
           </div>
           <div class="kpi-card">
             <div class="kpi-icon-row">
               <div class="kpi-icon" style="background:#F0FDF4">{icon(ICONS['trending'],'#16A34A',16)}</div>
-              <span class="kpi-tag">Improvement</span>
+              <span class="kpi-tag">Improvement vs Before</span>
             </div>
             <div class="kpi-val"><span class="{gain_cls}">{gain_str}</span></div>
-            <div class="kpi-sub">vs current layout</div>
+            <div class="kpi-sub">Before: ₹{improvement.get('current_profit', 0):,.0f}</div>
           </div>
           <div class="kpi-card">
             <div class="kpi-icon-row">
@@ -450,6 +508,25 @@ if "result" in st.session_state:
             <div class="kpi-sub">categories within range</div>
           </div>
         </div>""", unsafe_allow_html=True)
+        
+        # --- NEW SECTION: BEFORE VS AFTER COMPARISON TABLE ---
+        sec_header("compare", "Before vs. After Comparison")
+        
+        curr_df = data["current_layout"]
+        curr_products = len(curr_df)
+        curr_facings = pd.to_numeric(curr_df["Current_Facing"], errors="coerce").sum()
+        
+        opt_products = improvement.get('products_placed', 0)
+        opt_facings = best_layout['Facings'].sum()
+        
+        comp_df = pd.DataFrame({
+            "Metric": ["Total Profit Potential", "Unique Products Displayed", "Total Facings Assigned"],
+            "Before (Current Layout)": [f"₹{improvement.get('current_profit', 0):,.0f}", f"{curr_products}", f"{curr_facings:,.0f}"],
+            "After (Optimized Layout)": [f"₹{improvement.get('optimized_profit', 0):,.0f}", f"{opt_products}", f"{opt_facings:,.0f}"],
+            "Net Difference": [gain_str, f"{opt_products - curr_products:+d}", f"{opt_facings - curr_facings:+,.0f}"]
+        })
+        st.dataframe(comp_df, use_container_width=True, hide_index=True)
+        # -----------------------------------------------------
 
         sec_header("cube", "3D Shelf Viewer")
         st.caption("Drag to rotate  ·  Scroll to zoom  ·  Hover a product to see details")
@@ -486,9 +563,9 @@ if "result" in st.session_state:
         st.dataframe(display_cat, use_container_width=True, hide_index=True)
 
         sec_header("table", "Full Optimized Layout")
-        disp = best_layout[["Product_Name","Category","Display_Mode","Location_ID","Shelf_Level","Facings","Display_Units","Utility_Score"]].copy()
-        disp.columns = ["Product","Category","Mode","Location","Level","Facings","Display Units","Utility Score"]
-        disp["Utility Score"] = disp["Utility Score"].apply(lambda x: f"{x:,.0f}")
+        disp = best_layout[["Product_Name","Category","Display_Mode","Location_ID","Shelf_Level","Facings","Display_Units","Profit_Rs"]].copy()
+        disp.columns = ["Product","Category","Mode","Location","Level","Facings","Display Units","Profit (Rs)"]
+        disp["Profit (Rs)"] = disp["Profit (Rs)"].apply(lambda x: f"₹{x:,.0f}")
         st.dataframe(disp, use_container_width=True, hide_index=True)
 
         sec_header("download", "Export")
@@ -496,9 +573,8 @@ if "result" in st.session_state:
         st.download_button("Download Optimized Layout (CSV)", csv, "milp_optimized_layout.csv", "text/csv")
         
     else:
-        st.error(f"❌ **Solver Status: {result['solver_status']}**\n\nThe mathematical model cannot find a solution. Even after relaxing limits, the combination of 50 products and strict Category Rules physically exceeds the remaining capacity of the 15 shelves.")
+        st.error(f"❌ **Solver Status: {result['solver_status']}**\n\nThe mathematical model cannot find a solution. Even after relaxing limits, the combination of products and strict Rules physically exceeds the remaining capacity of the shelves.")
         
-        # Display explicit errors instead of just disappearing!
         st.info("💡 **Why is this happening?**\n"
                 "The solver is trapped between 'Category_Balance' minimums (which force it to add facings) and 'Shelf_Rack_Locations' weight/density limits (which forbid it from adding facings).")
 

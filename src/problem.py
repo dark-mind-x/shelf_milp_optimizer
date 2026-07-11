@@ -42,7 +42,7 @@ class ShelfMILPProblem:
             
         model += pulp.lpSum(utility_terms), "Engineering_Utility_Score"
 
-        # Constraints
+        # Constraints: Ensure every product IS placed
         for i in range(self.n_products):
             model += pulp.lpSum(x[i, s] for s in [ps for (pi, ps) in self.feasible_pairs if pi == i]) == 1
 
@@ -53,20 +53,18 @@ class ShelfMILPProblem:
         for s in range(self.n_shelves):
             products_on_s = [i for (i, ps) in self.feasible_pairs if ps == s]
             
-            # Width cap
+            # Width, Weight, and Density caps
             max_w = shelves.loc[s, "Max_Width_Utilization"] * shelves.loc[s, "Width_cm"]
             model += pulp.lpSum(products.loc[i, "Facing_Width_cm"] * f[i, s] for i in products_on_s) <= max_w
             
-            # Weight cap
             weight_cap = shelves.loc[s, "Weight_Capacity_kg"]
             model += pulp.lpSum(products.loc[i, "Unit_Weight_kg"] * products.loc[i, "Garments_per_Facing_Cap"] * f[i, s] for i in products_on_s) <= weight_cap
             
-            # Density cap
             area_m2 = (shelves.loc[s, "Width_cm"] * shelves.loc[s, "Depth_cm"]) / 10000.0
             density_cap = shelves.loc[s, "Max_Display_Density_units_m2"] * area_m2
             model += pulp.lpSum(products.loc[i, "Garments_per_Facing_Cap"] * f[i, s] for i in products_on_s) <= density_cap
 
-        # Category Z-linking and bounds
+        # Category linking
         for c in categories:
             prods_in_c = [i for i in range(self.n_products) if products.loc[i, "Category"] == c]
             for s in range(self.n_shelves):
@@ -80,6 +78,7 @@ class ShelfMILPProblem:
 
             min_loc = self.category_rules.loc[c, "Minimum_Locations"]
             max_loc = self.category_rules.loc[c, "Maximum_Locations"]
+            
             if pd.notna(min_loc): model += pulp.lpSum(z[c, s] for s in range(self.n_shelves)) >= min_loc
             if pd.notna(max_loc): model += pulp.lpSum(z[c, s] for s in range(self.n_shelves)) <= max_loc
 

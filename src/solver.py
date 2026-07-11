@@ -13,7 +13,7 @@ def run_solver(data: dict, time_limit: int = 60, verbose: bool = True) -> dict:
 
     if status not in ("Optimal", "Integer Feasible"):
         return {
-            "best_layout": pd.DataFrame(), "utility_score": 0.0, "solver_status": status,
+            "best_layout": pd.DataFrame(), "profit_score": 0.0, "solver_status": status,
             "improvement": {}, "category_summary": pd.DataFrame(), "shelf_summary": pd.DataFrame()
         }
 
@@ -23,7 +23,7 @@ def run_solver(data: dict, time_limit: int = 60, verbose: bool = True) -> dict:
     shelf_summary = _shelf_summary(best_layout, data)
 
     return {
-        "best_layout": best_layout, "utility_score": pulp.value(model.objective),
+        "best_layout": best_layout, "profit_score": pulp.value(model.objective),
         "solver_status": status, "improvement": improvement,
         "category_summary": cat_summary, "shelf_summary": shelf_summary
     }
@@ -37,6 +37,7 @@ def _decode(problem, variables, data) -> pd.DataFrame:
         x_val = pulp.value(x[i, s])
         if x_val is not None and x_val >= 0.5:
             facings = int(round(pulp.value(f[i, s])))
+            display_units = int(round(facings * float(products.loc[i, "Garments_per_Facing_Cap"])))
             rows.append({
                 "Product_ID": products.loc[i, "Product_ID"],
                 "Product_Name": products.loc[i, "Product_Name"],
@@ -45,8 +46,8 @@ def _decode(problem, variables, data) -> pd.DataFrame:
                 "Location_ID": shelves.loc[s, "Location_ID"],
                 "Shelf_Level": shelves.loc[s, "Shelf_Level"],
                 "Facings": facings,
-                "Display_Units": int(round(facings * float(products.loc[i, "Garments_per_Facing_Cap"]))),
-                "Utility_Score": float(products.loc[i, "Unit_Margin_Rs"] * (shelves.loc[s, "Reachability_Score"]/5.0) * shelves.loc[s, "Visibility_Multiplier"] * facings),
+                "Display_Units": display_units,
+                "Profit_Rs": float(products.loc[i, "Unit_Margin_Rs"] * display_units),
                 "Facing_Width_cm": float(products.loc[i, "Facing_Width_cm"])
             })
     return pd.DataFrame(rows).sort_values("Location_ID").reset_index(drop=True)
@@ -56,16 +57,25 @@ def _compute_improvement(best_layout, data) -> dict:
     loc_to_idx = dict(zip(data["shelves"]["Location_ID"], data["shelves"].index))
     prod_to_idx = dict(zip(data["products"]["Product_ID"], data["products"].index))
 
-    current_utility = 0.0
+    current_profit = 0.0
     for _, row in curr.iterrows():
         p_idx, s_idx = prod_to_idx.get(row["Product_ID"]), loc_to_idx.get(row["Current_Location_ID"])
         if p_idx is not None and s_idx is not None:
-            current_utility += (float(data["products"].loc[p_idx, "Unit_Margin_Rs"]) * (float(data["shelves"].loc[s_idx, "Reachability_Score"]) / 5.0) * float(data["shelves"].loc[s_idx, "Visibility_Multiplier"]) * float(row["Current_Facing"]))
+            facings = float(row["Current_Facing"])
+            cap = float(data["products"].loc[p_idx, "Garments_per_Facing_Cap"])
+            margin = float(data["products"].loc[p_idx, "Unit_Margin_Rs"])
+            current_profit += (margin * cap * facings)
 
-    optimized_utility = best_layout["Utility_Score"].sum()
-    gain_pct = ((optimized_utility - current_utility) / current_utility) * 100 if current_utility > 0 else 0.0
+    optimized_profit = best_layout["Profit_Rs"].sum() if not best_layout.empty else 0.0
+    profit_gain_abs = optimized_profit - current_profit
 
-    return {"current_utility": current_utility, "optimized_utility": optimized_utility, "utility_gain_pct": gain_pct, "products_placed": len(best_layout), "total_products": len(data["products"])}
+    return {
+        "current_profit": current_profit, 
+        "optimized_profit": optimized_profit, 
+        "profit_gain_abs": profit_gain_abs, 
+        "products_placed": len(best_layout), 
+        "total_products": len(data["products"])
+    }
 
 def _category_summary(best_layout, data):
     cat_rules = data["category_rules"]
