@@ -378,11 +378,19 @@ with st.sidebar:
     st.divider()
 
     st.markdown('<div style="font-size:11px;font-weight:600;color:#9CA3AF;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">Solver Settings</div>', unsafe_allow_html=True)
-    time_limit = st.slider("Time limit (seconds)", 20, 120, 60, 10)
+    time_limit = st.slider("Time limit (seconds)", 20, 240, 60, 10)
 
     st.divider()
     run_btn   = st.button("Run Optimizer", type="primary", use_container_width=True)
     clear_btn = st.button("Clear Results", use_container_width=True)
+
+    st.divider()
+    st.markdown('<div style="font-size:11px;font-weight:600;color:#9CA3AF;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">Project done by :</div>', unsafe_allow_html=True)
+
+    st.caption("Gurpreet Kaur")
+    st.caption("VFIT, Ph.d")
+  
+
 
 if clear_btn and "result" in st.session_state:
     del st.session_state["result"]
@@ -399,9 +407,7 @@ st.markdown(f"""
   <div class="top-bar-icon">{icon(ICONS['layers'],'#60A5FA',22)}</div>
   <div>
     <p class="top-bar-title">MILP Shelf Display Allocator</p>
-    <p class="top-bar-sub">Physical shelf allocation using Mixed-Integer Linear Programming
-      &nbsp;·&nbsp; CBC Exact Solver &nbsp;·&nbsp;
-      50 Products &nbsp;·&nbsp; 15 Shelf Locations</p>
+    <p class="top-bar-sub">Physical shelf allocation using Mixed-Integer Linear Programming</p>
   </div>
 </div>""", unsafe_allow_html=True)
 st.divider()
