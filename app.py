@@ -45,15 +45,13 @@ st.markdown("""
   .top-bar-icon { width:42px; height:42px; background:#1E3A5F; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .top-bar-title { font-size:22px; font-weight:700; color:#0F1F33; margin:0; }
   .top-bar-sub   { font-size:13px; color:#6B7280; margin:0; }
-  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:1.2rem 0; }
+  .kpi-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin:1.2rem 0; }
   .kpi-card { background:#FFFFFF; border:1px solid #E5E7EB; border-radius:12px; padding:1.1rem 1.3rem; box-shadow:0 1px 3px rgba(0,0,0,.06); }
   .kpi-icon-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
   .kpi-icon { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; }
   .kpi-tag  { font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:#6B7280; }
   .kpi-val  { font-size:28px; font-weight:700; color:#0F1F33; line-height:1.1; }
   .kpi-sub  { font-size:12px; color:#9CA3AF; margin-top:4px; }
-  .kpi-badge-pos { font-size:13px; font-weight:600; color:#059669; }
-  .kpi-badge-neg { font-size:13px; font-weight:600; color:#DC2626; }
   .sec-head { display:flex; align-items:center; gap:9px; margin:1.8rem 0 0.9rem 0; padding-bottom:8px; border-bottom:1.5px solid #E5E7EB; }
   .sec-head-icon { width:28px; height:28px; border-radius:6px; background:#F3F4F6; display:flex; align-items:center; justify-content:center; }
   .sec-head-text { font-size:16px; font-weight:600; color:#111827; }
@@ -74,7 +72,6 @@ def icon(d, color="#1E3A5F", size=18):
 
 ICONS = {
     "layers"  : "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5",
-    "trending": "M23 6l-9.5 9.5-5-5L1 18",
     "box"     : "M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z",
     "check"   : "M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3",
     "bar"     : "M18 20V10M12 20V4M6 20v-6",
@@ -83,8 +80,7 @@ ICONS = {
     "table"   : "M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18",
     "cube"    : "M12 2l10 6v8l-10 6L2 16V8l10-6z M12 22V12 M22 8l-10 4L2 8",
     "zap"     : "M13 2L3 14h9l-1 8 10-12h-9l1-8z",
-    "info"    : "M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 8v4M12 16h.01",
-    "compare" : "M14 5l7 7m0 0l-7 7m7-7H3"
+    "info"    : "M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 8v4M12 16h.01"
 }
 
 def sec_header(icon_key, title, badge=None):
@@ -265,14 +261,11 @@ Object.entries(slots).forEach(([key,prods])=>{
     const isHang = p.mode === 'Hanging';
     const col = parseInt(p.color.replace('#',''),16);
     
-    // Calculate the width for a SINGLE facing (pile/item)
     let singleW = (p.width_cm * 0.025) * scale;
     let actualBoxW = Math.max(0.1, singleW - 0.03); 
 
-    // Loop and physically draw each facing individually!
     for(let f = 0; f < p.facings; f++){
         if(isHang){
-          // Draw individual hanging item
           let geo = new THREE.BoxGeometry(actualBoxW, 1.4, 0.2); 
           let rodY = shelfYs[1] - 0.15;
           let yOff = (rodY - 0.7) - sy; 
@@ -290,7 +283,6 @@ Object.entries(slots).forEach(([key,prods])=>{
           scene.add(hanger);
           
         } else {
-          // Draw a neatly folded stack of 4 items for this specific facing
           let shirtsInPile = 4;
           let shirtH = 0.08;
           for(let s_idx=0; s_idx < shirtsInPile; s_idx++){
@@ -300,7 +292,6 @@ Object.entries(slots).forEach(([key,prods])=>{
               mesh.position.set(rx + currentX + singleW/2, sy + yOff, 0);
               mesh.castShadow = true;
               
-              // Add dark edging so you can see the individual garments in the stack
               let edges = new THREE.EdgesGeometry(geo);
               let line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color: 0x000000, transparent: true, opacity: 0.25}));
               mesh.add(line);
@@ -389,8 +380,6 @@ with st.sidebar:
 
     st.caption("Gurpreet Kaur")
     st.caption("VFIT, Ph.d")
-  
-
 
 if clear_btn and "result" in st.session_state:
     del st.session_state["result"]
@@ -473,11 +462,8 @@ if "result" in st.session_state:
         shelf_summary = result["shelf_summary"]
         rules_ok      = int(cat_summary["Within_Rules"].sum())
         rules_total   = len(cat_summary)
-        gain          = improvement.get("profit_gain_abs", 0)
 
         sec_header("bar", "Key Results")
-        gain_cls = "kpi-badge-pos" if gain >= 0 else "kpi-badge-neg"
-        gain_str = f"+₹{gain:,.0f}" if gain >= 0 else f"-₹{abs(gain):,.0f}"
 
         st.markdown(f"""
         <div class="kpi-grid">
@@ -491,19 +477,11 @@ if "result" in st.session_state:
           </div>
           <div class="kpi-card">
             <div class="kpi-icon-row">
-              <div class="kpi-icon" style="background:#F0FDF4">{icon(ICONS['trending'],'#16A34A',16)}</div>
-              <span class="kpi-tag">Improvement vs Before</span>
-            </div>
-            <div class="kpi-val"><span class="{gain_cls}">{gain_str}</span></div>
-            <div class="kpi-sub">Before: ₹{improvement.get('current_profit', 0):,.0f}</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-icon-row">
               <div class="kpi-icon" style="background:#FFF7ED">{icon(ICONS['box'],'#EA580C',16)}</div>
               <span class="kpi-tag">Products Placed</span>
             </div>
             <div class="kpi-val">{improvement['products_placed']} / {improvement['total_products']}</div>
-            <div class="kpi-sub">all products allocated</div>
+            <div class="kpi-sub">Products on the shop floor</div>
           </div>
           <div class="kpi-card">
             <div class="kpi-icon-row">
@@ -511,28 +489,9 @@ if "result" in st.session_state:
               <span class="kpi-tag">Category Rules</span>
             </div>
             <div class="kpi-val">{rules_ok} / {rules_total}</div>
-            <div class="kpi-sub">categories within range</div>
+            <div class="kpi-sub">Categories within range</div>
           </div>
         </div>""", unsafe_allow_html=True)
-        
-        # --- NEW SECTION: BEFORE VS AFTER COMPARISON TABLE ---
-        sec_header("compare", "Before vs. After Comparison")
-        
-        curr_df = data["current_layout"]
-        curr_products = len(curr_df)
-        curr_facings = pd.to_numeric(curr_df["Current_Facing"], errors="coerce").sum()
-        
-        opt_products = improvement.get('products_placed', 0)
-        opt_facings = best_layout['Facings'].sum()
-        
-        comp_df = pd.DataFrame({
-            "Metric": ["Total Profit Potential", "Unique Products Displayed", "Total Facings Assigned"],
-            "Before (Current Layout)": [f"₹{improvement.get('current_profit', 0):,.0f}", f"{curr_products}", f"{curr_facings:,.0f}"],
-            "After (Optimized Layout)": [f"₹{improvement.get('optimized_profit', 0):,.0f}", f"{opt_products}", f"{opt_facings:,.0f}"],
-            "Net Difference": [gain_str, f"{opt_products - curr_products:+d}", f"{opt_facings - curr_facings:+,.0f}"]
-        })
-        st.dataframe(comp_df, use_container_width=True, hide_index=True)
-        # -----------------------------------------------------
 
         sec_header("cube", "3D Shelf Viewer")
         st.caption("Drag to rotate  ·  Scroll to zoom  ·  Hover a product to see details")

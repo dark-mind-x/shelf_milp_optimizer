@@ -18,7 +18,15 @@ def run_solver(data: dict, time_limit: int = 60, verbose: bool = True) -> dict:
         }
 
     best_layout = _decode(problem, variables, data)
-    improvement = _compute_improvement(best_layout, data)
+    
+    # Clean improvement dict containing ONLY the optimized metrics
+    optimized_profit = best_layout["Profit_Rs"].sum() if not best_layout.empty else 0.0
+    improvement = {
+        "optimized_profit": optimized_profit, 
+        "products_placed": len(best_layout), 
+        "total_products": len(data["products"])
+    }
+    
     cat_summary = _category_summary(best_layout, data)
     shelf_summary = _shelf_summary(best_layout, data)
 
@@ -52,31 +60,6 @@ def _decode(problem, variables, data) -> pd.DataFrame:
             })
     return pd.DataFrame(rows).sort_values("Location_ID").reset_index(drop=True)
 
-def _compute_improvement(best_layout, data) -> dict:
-    curr = data["current_layout"]
-    loc_to_idx = dict(zip(data["shelves"]["Location_ID"], data["shelves"].index))
-    prod_to_idx = dict(zip(data["products"]["Product_ID"], data["products"].index))
-
-    current_profit = 0.0
-    for _, row in curr.iterrows():
-        p_idx, s_idx = prod_to_idx.get(row["Product_ID"]), loc_to_idx.get(row["Current_Location_ID"])
-        if p_idx is not None and s_idx is not None:
-            facings = float(row["Current_Facing"])
-            cap = float(data["products"].loc[p_idx, "Garments_per_Facing_Cap"])
-            margin = float(data["products"].loc[p_idx, "Unit_Margin_Rs"])
-            current_profit += (margin * cap * facings)
-
-    optimized_profit = best_layout["Profit_Rs"].sum() if not best_layout.empty else 0.0
-    profit_gain_abs = optimized_profit - current_profit
-
-    return {
-        "current_profit": current_profit, 
-        "optimized_profit": optimized_profit, 
-        "profit_gain_abs": profit_gain_abs, 
-        "products_placed": len(best_layout), 
-        "total_products": len(data["products"])
-    }
-
 def _category_summary(best_layout, data):
     cat_rules = data["category_rules"]
     rows = []
@@ -98,7 +81,5 @@ def _shelf_summary(best_layout, data):
         used_w = (on_shelf["Facing_Width_cm"] * on_shelf["Facings"]).sum() if not on_shelf.empty else 0.0
         shelf_w = float(shelves.loc[s, "Width_cm"])
         
-        rows.append({"Location_ID": loc, "Shelf_Level": shelves.loc[s, "Shelf_Level"], "Products": len(on_shelf), "Used_Width_cm": round(used_w, 1), "Shelf_Width_cm": shelf_w, 
-                     "Utilization_%": round((used_w / shelf_w * 100) if shelf_w > 0 else 0, 1), "Min_Allowed_%": round(float(shelves.loc[s, "Min_Width_Utilization"]) * 100, 1), 
-                     "Max_Allowed_%": round(float(shelves.loc[s, "Max_Width_Utilization"]) * 100, 1)})
+        rows.append({"Location_ID": loc, "Shelf_Level": shelves.loc[s, "Shelf_Level"], "Width_Capacity": shelf_w, "Used_Width": used_w, "Utilization": used_w/shelf_w if shelf_w else 0, "Min_Target": float(shelves.loc[s, "Min_Width_Utilization"]), "Max_Target": float(shelves.loc[s, "Max_Width_Utilization"])})
     return pd.DataFrame(rows)

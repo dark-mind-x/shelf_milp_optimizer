@@ -42,9 +42,9 @@ class ShelfMILPProblem:
             
         model += pulp.lpSum(utility_terms), "Engineering_Utility_Score"
 
-        # Constraints: Ensure every product IS placed
+        # Constraints: Allow low-margin products to be left in the stockroom (<= 1)
         for i in range(self.n_products):
-            model += pulp.lpSum(x[i, s] for s in [ps for (pi, ps) in self.feasible_pairs if pi == i]) == 1
+            model += pulp.lpSum(x[i, s] for s in [ps for (pi, ps) in self.feasible_pairs if pi == i]) <= 1
 
         for (i, s) in self.feasible_pairs:
             model += f[i, s] <= products.loc[i, "Max_Facing"] * x[i, s]
