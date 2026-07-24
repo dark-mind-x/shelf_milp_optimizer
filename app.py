@@ -110,17 +110,17 @@ def render_3d_viewer(layout_df: pd.DataFrame = None, height: int = 500):
             except:
                 s_level, r_num = 1, 1
             products_js.append({
-                "name"    : str(row["Product_Name"]),
-                "cat"     : str(row["Category"]),
-                "mode"    : str(row["Display_Mode"]),
-                "facings" : int(row["Facings"]),
+                "name"    : str(row.get("Product_Name", "Product")),
+                "cat"     : str(row.get("Category", "Tops")),
+                "mode"    : str(row.get("Display_Mode", "Folded")),
+                "facings" : int(row.get("Facings", 1)),
                 "rack"    : r_num,
                 "level"   : s_level,
-                "color"   : CATEGORY_COLORS_HEX.get(str(row["Category"]), "#607D8B"),
+                "color"   : CATEGORY_COLORS_HEX.get(str(row.get("Category", "")), "#607D8B"),
                 "width_cm": float(row.get("Facing_Width_cm", 30))
             })
         products_json = json.dumps(products_js)
-        title_text = "Optimized Layout — True Scale 3D View"
+        title_text = "True Scale 3D View"
     else:
         products_json = "[]"
         title_text = "3D Shelf Viewer — Run optimizer to see layout"
@@ -418,8 +418,7 @@ if run_btn:
     <div class="progress-wrap">
       <div class="progress-title">CBC Solver Running</div>
       <div class="progress-sub">
-        Finding the optimal layout for 50 products across 15 shelves.
-        Time limit: {time_limit} seconds.
+        Finding the optimal layout. Target profit dynamically set to +15% of baseline. Time limit: {time_limit} seconds.
       </div>
     </div>""", unsafe_allow_html=True)
 
@@ -473,7 +472,7 @@ if "result" in st.session_state:
               <span class="kpi-tag">Optimized Profit</span>
             </div>
             <div class="kpi-val">₹{improvement.get('optimized_profit', 0):,.0f}</div>
-            <div class="kpi-sub">Total revenue potential</div>
+            <div class="kpi-sub">Total revenue potential (+15% target applied)</div>
           </div>
           <div class="kpi-card">
             <div class="kpi-icon-row">
@@ -493,7 +492,7 @@ if "result" in st.session_state:
           </div>
         </div>""", unsafe_allow_html=True)
 
-        sec_header("cube", "3D Shelf Viewer")
+        sec_header("cube", "3D Shelf Viewer — Optimized")
         st.caption("Drag to rotate  ·  Scroll to zoom  ·  Hover a product to see details")
         render_3d_viewer(best_layout, height=500)
 
@@ -538,15 +537,45 @@ if "result" in st.session_state:
         st.download_button("Download Optimized Layout (CSV)", csv, "milp_optimized_layout.csv", "text/csv")
         
     else:
-        st.error(f"❌ **Solver Status: {result['solver_status']}**\n\nThe mathematical model cannot find a solution. Even after relaxing limits, the combination of products and strict Rules physically exceeds the remaining capacity of the shelves.")
-        
-        st.info("💡 **Why is this happening?**\n"
-                "The solver is trapped between 'Category_Balance' minimums (which force it to add facings) and 'Shelf_Rack_Locations' weight/density limits (which forbid it from adding facings).")
+        st.error(f"❌ **Solver Status: {result['solver_status']}**\n\nThe mathematical model cannot find a solution.")
 
 else:
-    sec_header("info", "Getting Started")
-    st.info("Adjust the solver time limit in the sidebar and click Run Optimizer to begin.")
-
-    sec_header("cube", "3D Shelf Viewer — Preview")
-    st.caption("This will show your optimized layout after running the solver.")
-    render_3d_viewer(None, height=420)
+    sec_header("info", "Before Optimization Layout")
+    
+    if "before_layout" in data and not data["before_layout"].empty:
+        before_df = data["before_layout"]
+        baseline_profit = before_df["Profit_Rs"].sum() if "Profit_Rs" in before_df.columns else 0
+        target_profit = baseline_profit * 1.15
+        
+        st.markdown(f"""
+        <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);">
+          <div class="kpi-card" style="background:#FFF1F2; border-color:#FECDD3;">
+            <div class="kpi-icon-row">
+              <span class="kpi-tag" style="color:#9F1239;">Current Baseline Profit</span>
+            </div>
+            <div class="kpi-val">₹{baseline_profit:,.0f}</div>
+            <div class="kpi-sub" style="color:#9F1239;">From Before_optimization.xlsx</div>
+          </div>
+          <div class="kpi-card" style="background:#EFF6FF; border-color:#BFDBFE;">
+            <div class="kpi-icon-row">
+              <span class="kpi-tag" style="color:#1E40AF;">Target Optimizer Profit (+15%)</span>
+            </div>
+            <div class="kpi-val">₹{target_profit:,.0f}</div>
+            <div class="kpi-sub" style="color:#1E40AF;">Solver will dynamically target this range</div>
+          </div>
+        </div>""", unsafe_allow_html=True)
+        
+        sec_header("cube", "3D Shelf Viewer — Current Baseline")
+        st.caption("Drag to rotate  ·  Scroll to zoom  ·  Hover a product to see details")
+        render_3d_viewer(before_df, height=450)
+        
+        sec_header("table", "Current Layout Details")
+        disp_before = before_df[["Product_Name", "Category", "Display_Mode", "Location_ID", "Shelf_Level", "Facings", "Display_Units", "Profit_Rs"]].copy()
+        disp_before.columns = ["Product", "Category", "Mode", "Location", "Level", "Facings", "Display Units", "Profit (Rs)"]
+        disp_before["Profit (Rs)"] = disp_before["Profit (Rs)"].apply(lambda x: f"₹{x:,.0f}")
+        st.dataframe(disp_before, use_container_width=True, hide_index=True)
+        
+    else:
+        st.info("Adjust the solver time limit in the sidebar and click Run Optimizer to begin.")
+        sec_header("cube", "3D Shelf Viewer — Preview")
+        render_3d_viewer(None, height=420)

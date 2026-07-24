@@ -2,49 +2,18 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-DATA_PATH = Path(__file__).parent.parent / "data" / "Second_Paper_MILP_Dataset_Full.xlsx"
+# Try to locate files dynamically to avoid naming issues
+try:
+    BASE_DIR = Path(__file__).parent.parent 
+except:
+    BASE_DIR = Path.cwd()
 
-def apply_smart_capacity_limits(products, shelves):
-    """
-    SENIOR DEV LOGIC: Dynamically balances physical capacity against user requests.
-    Guarantees all products fit by smartly managing Min_Facing based on profit margins.
-    """
-    # 1. Calculate physical limits
-    total_shelf_width = shelves["Width_cm"].sum() * 0.94  # 94% max utilization
-    
-    # 2. Sort products by profit potential (Margin * Capacity) to prioritize space
-    products["Profit_Potential"] = products["Unit_Margin_Rs"] * products["Garments_per_Facing_Cap"]
-    products = products.sort_values(by="Profit_Potential", ascending=False).reset_index(drop=True)
-    
-    # 3. Smart Assignment
-    current_used_width = 0.0
-    actual_min_facings = []
-    
-    for _, p in products.iterrows():
-        # Everyone gets at least 1 facing to guarantee 50/50 placement
-        assigned_facing = 1 
-        width_needed = float(p["Facing_Width_cm"])
-        
-        # If user asked for 2 (or more), and we have physical room, grant it!
-        requested_min = int(p.get("Min_Facing", 2))
-        if requested_min > 1:
-            extra_width = (requested_min - 1) * width_needed
-            if current_used_width + extra_width <= total_shelf_width:
-                assigned_facing = requested_min
-                current_used_width += extra_width
-                
-        current_used_width += width_needed
-        actual_min_facings.append(assigned_facing)
-        
-    products["Min_Facing"] = actual_min_facings
-    
-    # 4. Remove arbitrary physical bottlenecks for the demonstration
-    shelves["Weight_Capacity_kg"] *= 2.0
-    shelves["Max_Display_Density_units_m2"] *= 2.0
-    
-    return products, shelves
+def load_all(path=None):
+    if path is None:
+        import glob
+        files = glob.glob(str(BASE_DIR / "data" / "*MILP_Dataset*.xlsx")) + glob.glob("*MILP_Dataset*.xlsx")
+        path = files[0] if files else "Second_Paper_MILP_Dataset_Full.xlsx"
 
-def load_all(path=DATA_PATH):
     # 1. Load Products
     products = pd.read_excel(path, sheet_name="Products", engine="openpyxl")
     for col in products.select_dtypes(include=["object", "str"]).columns:
@@ -71,8 +40,6 @@ def load_all(path=DATA_PATH):
     for col in s_num_cols:
         shelves[col] = pd.to_numeric(shelves[col], errors="coerce")
 
-    # --- APPLY SENIOR DEV CAPACITY LOGIC ---
-    products, shelves = apply_smart_capacity_limits(products, shelves)
     products["Max_Facing"] = products["Max_Facing"].fillna(5).clip(lower=products["Min_Facing"])
 
     # 3. Build Feasibility Matrix
@@ -96,7 +63,45 @@ def load_all(path=DATA_PATH):
     for col in ["Minimum_Locations", "Maximum_Locations", "Minimum_Total_Facings"]:
         category_rules[col] = pd.to_numeric(category_rules[col], errors="coerce")
 
+    # 5. Load Before Optimization Data (For Streamlit UI)
+    before_layout = pd.DataFrame()
+    try:
+        import glob
+        before_files = glob.glob(str(BASE_DIR / "data" / "Before_optimization*.xlsx")) + glob.glob("Before_optimization*.xlsx")
+        if before_files:
+            df_before = pd.read_excel(before_files[0], engine="openpyxl")
+            
+            # Standardize columns so the 3D visualizer can render the before state perfectly
+            col_map = {
+                'Product name': 'Product_Name',
+                'category ': 'Category',
+                'display mode': 'Display_Mode',
+                'Current facings ': 'Facings',
+                'Current product location ': 'Location_ID',
+                'facing width': 'Facing_Width_cm',
+                'Total Profit': 'Profit_Rs',
+                'Total garemnts on shelf ': 'Display_Units'
+            }
+            before_layout = df_before.rename(columns=col_map)
+            before_layout = before_layout.dropna(subset=['Location_ID', 'Facings'])
+            
+            # Map location IDs to shelf levels
+            def get_level(loc):
+                if pd.isna(loc): return "Middle"
+                if 'S1' in str(loc): return "Top"
+                if 'S2' in str(loc): return "Middle"
+                return "Lower"
+                
+            before_layout['Shelf_Level'] = before_layout['Location_ID'].apply(get_level)
+            for c in ['Facings', 'Facing_Width_cm', 'Profit_Rs', 'Display_Units']:
+                if c in before_layout.columns:
+                    before_layout[c] = pd.to_numeric(before_layout[c], errors='coerce').fillna(0)
+                    
+    except Exception as e:
+        print(f"Notice: Before_optimization.xlsx not loaded. ({e})")
+
     return {
         "products": products, "shelves": shelves, 
-        "feasibility": feas_matrix, "category_rules": category_rules
+        "feasibility": feas_matrix, "category_rules": category_rules,
+        "before_layout": before_layout
     }
